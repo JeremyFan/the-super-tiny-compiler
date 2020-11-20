@@ -1,6 +1,4 @@
-'use strict';
-
-const { clone, compose } = require('./utils')
+const { clone } = require('./utils')
 
 /**
  * ============================================================================
@@ -142,28 +140,13 @@ function tokenizer(input) {
  * ============================================================================
  * 
  * 
- * input:
- * [
- *   { type: 'name', value: 'const' },
- *   { type: 'name', value: 'sum' },
- *   { type: 'operator', value: '=' },
- *   { type: 'paren', value: '(' },
- *   { type: 'name', value: 'a' },
- *   { type: 'notation', value: ',' },
- *   { type: 'name', value: 'b' },
- *   { type: 'paren', value: ')' },
- *   { type: 'syntax', value: '=>' },
- *   { type: 'name', value: 'a' },
- *   { type: 'operator', value: '+' },
- *   { type: 'name', value: 'b' }
- * ]
- * 
  * output:
  * {
  *   type: 'Program',
  *   body: [
  *     {
  *       type: 'VariableDeclaration',
+ *       kind: 'const',
  *       declarations: [
  *         {
  *           type: 'VariableDeclarator',
@@ -321,32 +304,26 @@ function parser(tokens) {
  *                               THE TRAVERSER!!!
  * ============================================================================
  * 
- * visitor:
+ * 
+ * pass visitor like this:
  * {
- *   Program: {
- *     enter(node, parent) {
- *       console.log('enter->', node)
- *     },
- *     exit(node, parent) {
- *       console.log('exit->', node)
- *     }
- *   },
  *   BinaryExpression: {
  *     enter(node, parent) {
- *       console.log('enter->', node)
+ *       // modify node here
  *     },
  *     exit(node, parent) {
- *       console.log('exit->', node)
+ *       // modify node here
  *     }
  *   },
  *   Identifier: {
  *     enter(node, parent) {
- *       console.log('enter->', node)
+ *       // modify node here
  *     },
  *     exit(node, parent) {
- *       console.log('exit->', node)
+ *       // modify node here
  *     }
  *   }
+ * }
  * 
  */
 function traverser(ast, visitor) {
@@ -417,47 +394,47 @@ function traverser(ast, visitor) {
  *                                   ⁽(◍˃̵͈̑ᴗ˂̵͈̑)⁽
  *                              THE TRANSFORMER!!!
  * ============================================================================
- */
-
-/**
- * Next up, the transformer. Our transformer is going to take the AST that we
- * have built and pass it to our traverser function with a visitor and will
- * create a new ast.
  *
- * ----------------------------------------------------------------------------
- *   Original AST                     |   Transformed AST
- * ----------------------------------------------------------------------------
- *   {                                |   {
- *     type: 'Program',               |     type: 'Program',
- *     body: [{                       |     body: [{
- *       type: 'CallExpression',      |       type: 'ExpressionStatement',
- *       name: 'add',                 |       expression: {
- *       params: [{                   |         type: 'CallExpression',
- *         type: 'NumberLiteral',     |         callee: {
- *         value: '2'                 |           type: 'Identifier',
- *       }, {                         |           name: 'add'
- *         type: 'CallExpression',    |         },
- *         name: 'subtract',          |         arguments: [{
- *         params: [{                 |           type: 'NumberLiteral',
- *           type: 'NumberLiteral',   |           value: '2'
- *           value: '4'               |         }, {
- *         }, {                       |           type: 'CallExpression',
- *           type: 'NumberLiteral',   |           callee: {
- *           value: '2'               |             type: 'Identifier',
- *         }]                         |             name: 'subtract'
- *       }]                           |           },
- *     }]                             |           arguments: [{
- *   }                                |             type: 'NumberLiteral',
- *                                    |             value: '4'
- * ---------------------------------- |           }, {
- *                                    |             type: 'NumberLiteral',
- *                                    |             value: '2'
- *                                    |           }]
- *  (sorry the other one is longer.)  |         }
- *                                    |       }
- *                                    |     }]
- *                                    |   }
- * ----------------------------------------------------------------------------
+ * 
+ * output:
+ * 
+ * { 
+ *   type: 'Program',
+ *   body: [ 
+ *     { 
+ *       type: 'VariableDeclaration',
+ *       kind: 'var',
+ *       declarations: [ 
+ *         { 
+ *           type: 'VariableDeclarator',
+ *           id: { type: 'Identifier', name: 'sum' },
+ *           init: { 
+ *             type: 'FunctionExpression',
+ *             params: [ 
+ *               { type: 'Identifier', name: 'a' },
+ *               { type: 'Identifier', name: 'b' } 
+ *             ],
+ *             body: { 
+ *               type: 'BlockStatement',
+ *               body: { 
+ *                 type: 'ReturnStatement',
+ *                 arguments: { 
+ *                   type: 'BinaryExpression',
+ *                   operator: '+',
+ *                   left: { type: 'Identifier', name: 'a' },
+ *                   right: { type: 'Identifier', name: 'b' }
+ *                 },
+ *               },
+ *             },
+ *             _transformed: true 
+ *           },
+ *         },
+ *       ],
+ *     },
+ *   ],
+ * }
+ * 
+ *
  */
 function transformer(ast) {
   let newAst = clone(ast);
@@ -497,6 +474,17 @@ function transformer(ast) {
  *                               ヾ（〃＾∇＾）ﾉ♪
  *                            THE CODE GENERATOR!!!!
  * ============================================================================
+ * 
+ * 
+ * output:
+ * 
+ * ```
+ * var sum = function (a, b) {
+ *   return a + b
+ * }
+ * ```
+ * 
+ * 
  */
 function codeGenerator(node) {
   switch (node.type) {
@@ -537,21 +525,6 @@ function codeGenerator(node) {
         ' ' +
         codeGenerator(node.right)
       )
-
-    case 'ExpressionStatement':
-      return (
-        codeGenerator(node.expression) +
-        ';'
-      );
-
-    case 'CallExpression':
-      return (
-        codeGenerator(node.callee) +
-        '(' +
-        node.arguments.map(codeGenerator)
-          .join(', ') +
-        ')'
-      );
 
     case 'Identifier':
       return node.name;
@@ -594,39 +567,21 @@ function compiler(input) {
   return output;
 }
 
-  /**
-   * ============================================================================
-   *                                   (๑˃̵ᴗ˂̵)و
-   * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!YOU MADE IT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   * ============================================================================
-   */
+/**
+ * ============================================================================
+ *                                   (๑˃̵ᴗ˂̵)و
+ * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!YOU MADE IT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ * ============================================================================
+ * 
+ * 
+ */
 
-  // Now I'm just exporting everything...
-  module.exports = {
-    tokenizer,
-    parser,
-    traverser,
-    transformer,
-    codeGenerator,
-    compiler,
-  };
-
-// let a = tokenizer('const sum = (a, b) => a + b')
-// console.log('tokens->', a)
-
-// @todo use util.inspect
-// let b = parser(a)
-// console.log('ast->', JSON.stringify(b))
-
-// let c = transformer(b)
-// console.log('newAst->', JSON.stringify(c))
-
-// let d = codeGenerator(c)
-// console.log('code->', d)
-
-
-// const newAst = transformer(ast)
-
-// console.log(JSON.stringify(newAst))
-
-// console.log(codeGenerator(newAst))
+// Now I'm just exporting everything...
+module.exports = {
+  tokenizer,
+  parser,
+  traverser,
+  transformer,
+  codeGenerator,
+  compiler,
+};

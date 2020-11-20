@@ -1,3 +1,5 @@
+const util = require('util')
+
 function compose(...funcs) {
   return funcs.reduce((a, b) => (...args) => a(b(...args)))
 }
@@ -22,4 +24,8 @@ function clone(obj) {
   return result
 }
 
-module.exports = { compose, clone }
+function inspect(obj) {
+  return util.inspect(obj, { depth: null, colors: true })
+}
+
+module.exports = { compose, clone, inspect }
